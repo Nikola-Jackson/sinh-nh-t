@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Login → Countdown → Heart</title>
+<style>
+:root{--accent:#f76070}
+html,body{height:100%;margin:0;font-family:Inter,Segoe UI,Roboto,Arial;color:#eee}
+body{background:linear-gradient(180deg,#000,#07111a);display:flex;align-items:center;justify-content:center;padding:24px}
+.panel{background:rgba(255,255,255,0.02);padding:18px;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,0.6);width:100%;max-width:680px;text-align:center}
+.form-row{display:flex;gap:8px;margin:10px 0}
+input{flex:1;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:#fff}
+button{padding:10px 14px;border-radius:8px;border:0;background:var(--accent);color:#fff;cursor:pointer}
+#countPanel, #heartSection{display:none}
+canvas{background:#000;border-radius:8px;display:block;margin:12px auto;max-width:100%}
+.centered-msg{position:absolute;left:50%;top:18px;transform:translateX(-50%);pointer-events:none}
+.centered-msg #centerText{font-family:Helvetica,Arial;font-weight:700;font-size:28px;color:#fff;mix-blend-mode:screen}
+.small-muted{font-size:12px;color:#999;margin-top:8px}
+</style>
+</head>
+
+<body>
+
+<!-- LOGIN PANEL -->
+<div id="loginPanel" class="panel">
+  <h2>Đăng nhập</h2>
+  <div class="form-row"><input id="username" placeholder="Username" value="Tan"/></div>
+  <div class="form-row">
+    <input id="password" placeholder="Password" type="password"/>
+    <button id="loginBtn">Login</button>
+  </div>
+  <div id="loginMsg" style="font-size:14px;margin-top:6px"></div>
+</div>
+
+<!-- COUNTDOWN PANEL -->
+<div id="countPanel" class="panel">
+  <h2>Đếm ngược</h2>
+  <div id="countdown" style="font-size:22px">Bất ngờ sẽ hiện sau <span id="count">10</span> giây!</div>
+  <div class="small-muted">Sau đếm ngược sẽ xuất hiện bất ngờ !</div>
+</div>
+
+<!-- HEART SECTION -->
+<div class="panel" id="heartSection" style="position:relative; text-align:center">
+  <div class="centered-msg">
+    <div id="centerText">CHÚC BẠN SINH NHẬT VUI VẺ !!!</div>
+  </div>
+  <h2>❤</h2>
+  <canvas id="heartCanvas" width="640" height="480"></canvas>
+  <div class="small-muted">Trái tim xuất hiện thành công!</div>
+</div>
+
+<script>
+// --- CONFIG ---
+const DEMO_USER = "Tan";
+const DEMO_PASS = "admin1234";
+
+// --- LOGIN HANDLER ---
+document.getElementById("loginBtn").onclick = () => {
+  const u = document.getElementById('username').value.trim();
+  const p = document.getElementById('password').value;
+  const msg = document.getElementById('loginMsg');
+  if (u === DEMO_USER && p === DEMO_PASS) {
+    document.getElementById("loginPanel").style.display = "none";
+    document.getElementById("countPanel").style.display = "block";
+    startCountdown(10);
+  } else {
+    msg.textContent = "Sai username hoặc password.";
+  }
+};
+
+// --- COUNTDOWN ---
+function startCountdown(seconds) {
+  const countEl = document.getElementById('count');
+  let t = seconds;
+  countEl.textContent = t;
+  const iv = setInterval(() => {
+    t--;
+    if (t <= 0) {
+      clearInterval(iv);
+      document.getElementById('countPanel').style.display = 'none';
+      startHeart();
+    } else {
+      countEl.textContent = t;
+    }
+  }, 1000);
+}
+
+// --- HEART ANIMATION ---
+const canvas = document.getElementById('heartCanvas');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+const CX = W/2, CY = H/2;
+const PARTICLES = 1500;
+let particles = [];
+
+// generate heart point
+function heartXY(t, scale = 11) {
+  const x = 16 * Math.pow(Math.sin(t), 3);
+  const y = -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t));
+  return [CX + x * scale, CY + y * scale];
+}
+
+for (let i = 0; i < PARTICLES; i++) {
+  const t = Math.random() * Math.PI * 2;
+  let [x, y] = heartXY(t);
+  const r = -0.15 * Math.log(Math.random());
+  x = x - r * (x - CX);
+  y = y - r * (y - CY);
+  particles.push({ x, y, size: Math.random()*2+1, vx: 0, vy: 0, h: Math.random()*360 });
+}
+
+function hsv(h, s, v) {
+  let c = v * s;
+  let x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  let m = v - c;
+  let r=0,g=0,b=0;
+  if(h < 60){ r=c; g=x; }
+  else if(h < 120){ r=x; g=c; }
+  else if(h < 180){ g=c; b=x; }
+  else if(h < 240){ g=x; b=c; }
+  else if(h < 300){ r=x; b=c; }
+  else { r=c; b=x; }
+  r = (r + m) * 255; g = (g + m) * 255; b = (b + m) * 255;
+  return `rgb(${r|0},${g|0},${b|0})`;
+}
+
+let frame = 0;
+function drawHeart() {
+  ctx.clearRect(0,0,W,H);
+
+  // halo
+  for (let i = 0; i < 250; i++) {
+    const t = Math.random() * Math.PI * 2;
+    const [hx, hy] = heartXY(t, 11.6);
+    const sz = Math.random()*3+1;
+    ctx.globalAlpha = 0.12;
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(hx + Math.random()*36 - 18, hy + Math.random()*36 - 18, sz, sz);
+  }
+  ctx.globalAlpha = 1;
+
+  for (let p of particles) {
+    const dx = p.x - CX, dy = p.y - CY;
+    const dist = Math.sqrt(dx*dx + dy*dy) + 1e-6;
+    const force = 1 / Math.pow(dist, 0.520);
+    p.vx += -0.048 * force * dx + (Math.random()-0.5)*1.0;
+    p.vy += -0.048 * force * dy + (Math.random()-0.5)*1.0;
+    p.x += p.vx; p.y += p.vy;
+    if (Math.abs(p.x - CX) > W || Math.abs(p.y - CY) > H) {
+      const t2 = Math.random() * Math.PI * 2;
+      let [x2, y2] = heartXY(t2);
+      p.x = x2; p.y = y2; p.vx = 0; p.vy = 0;
+    }
+    ctx.fillStyle = hsv((p.h + frame*1.1) % 360, 0.9, 1);
+    ctx.fillRect(p.x, p.y, p.size, p.size);
+  }
+
+  const centerText = document.getElementById('centerText');
+  if (centerText) centerText.style.color = hsv(frame % 360, 0.9, 1);
+
+  frame++;
+  requestAnimationFrame(drawHeart);
+}
+
+function startHeart() {
+  document.getElementById("heartSection").style.display = "block";
+  requestAnimationFrame(drawHeart);
+}
+</script>
+</body>
+</html>
+
